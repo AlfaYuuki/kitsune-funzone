@@ -99,13 +99,9 @@ function showWithAnimation(element, enterClass = 'ui-enter-fade') {
     if (!element.classList.contains('hidden')) return;
     clearUiAnimationClasses(element);
     element.classList.remove('hidden');
-    normalizeDraggedElementBounds(element, { persist: true });
     if (prefersReducedMotion) return;
     void element.offsetWidth;
     element.classList.add(enterClass);
-    setTimeout(() => {
-        normalizeDraggedElementBounds(element, { persist: true });
-    }, 0);
 }
 
 function hideWithAnimation(element, exitClass = 'ui-exit-fade', onDone) {
@@ -213,16 +209,9 @@ function clampDragCoordinates(element, left, top) {
     };
 }
 
-function clampDragWidth(width) {
-    if (!Number.isFinite(width) || width <= 0) return null;
-    const minWidth = 40;
-    const maxWidth = Math.max(minWidth, window.innerWidth - 8);
-    return Math.round(Math.min(maxWidth, Math.max(minWidth, width)));
-}
-
 function applyFixedDragLayout(element, left, top, width) {
     if (!element) return;
-    const safeWidth = clampDragWidth(width);
+    const safeWidth = Number.isFinite(width) && width > 0 ? Math.round(width) : null;
     element.style.position = 'fixed';
     element.style.left = `${Math.round(left)}px`;
     element.style.top = `${Math.round(top)}px`;
@@ -234,21 +223,6 @@ function applyFixedDragLayout(element, left, top, width) {
         element.style.maxWidth = 'none';
     }
     element.style.transform = 'none';
-}
-
-function normalizeDraggedElementBounds(element, { persist = false } = {}) {
-    if (!element || element.style.position !== 'fixed') return;
-    const rect = element.getBoundingClientRect();
-    const safeWidth = clampDragWidth(rect.width || Number.parseFloat(element.style.width));
-    if (safeWidth !== null) {
-        element.style.width = `${safeWidth}px`;
-        element.style.maxWidth = 'none';
-    }
-    const clamped = clampDragCoordinates(element, rect.left, rect.top);
-    if (clamped.left === Math.round(rect.left) && clamped.top === Math.round(rect.top)) return;
-    element.style.left = `${clamped.left}px`;
-    element.style.top = `${clamped.top}px`;
-    if (persist) persistDraggedElementLayout(element);
 }
 
 function prepareElementForDragging(element) {
@@ -281,17 +255,14 @@ function restoreAdminLayout() {
         const entry = sanitizeAdminLayoutEntry(map[id]);
         if (!entry) return;
         applyFixedDragLayout(element, entry.left, entry.top, entry.width);
-        const beforeRect = element.getBoundingClientRect();
-        normalizeDraggedElementBounds(element, { persist: false });
-        const afterRect = element.getBoundingClientRect();
-        const widthChanged = Math.round(beforeRect.width) !== Math.round(afterRect.width);
-        const posChanged = Math.round(beforeRect.left) !== Math.round(afterRect.left)
-            || Math.round(beforeRect.top) !== Math.round(afterRect.top);
-        if (widthChanged || posChanged) {
+        const clamped = clampDragCoordinates(element, entry.left, entry.top);
+        element.style.left = `${clamped.left}px`;
+        element.style.top = `${clamped.top}px`;
+        if (clamped.left !== entry.left || clamped.top !== entry.top) {
             map[id] = {
-                left: Math.round(afterRect.left),
-                top: Math.round(afterRect.top),
-                width: Math.round(afterRect.width)
+                left: clamped.left,
+                top: clamped.top,
+                width: Math.round(element.getBoundingClientRect().width)
             };
             changed = true;
         }
@@ -441,12 +412,7 @@ function bindAdminDragEvents() {
         endActiveAdminDrag({ persist: true });
     });
     window.addEventListener('resize', () => {
-        if (!activeAdminDrag) {
-            restoreAdminLayout();
-            getAdminDraggableElements().forEach(({ element }) => {
-                normalizeDraggedElementBounds(element, { persist: true });
-            });
-        }
+        if (!activeAdminDrag) restoreAdminLayout();
     });
     document.addEventListener('keydown', (event) => {
         if (event.key !== 'Escape') return;
