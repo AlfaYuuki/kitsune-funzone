@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitsune FunZone 🦊 SAO Mode</title>
+<link rel="icon" type="image/png" href="Kitsune%20FunZone%20favicon%20design.png">
+<link rel="shortcut icon" href="Kitsune%20FunZone%20favicon%20design.png">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- Mental Health Bar -->
+<div class="mh-container">
+  <div class="mh-bar">
+    <span class="mh-text">Error404: No Brain Found</span>
+  </div>
+</div>
+
+<!-- Player Profile Panel -->
+<div id="profile-panel" class="profile-panel">
+  <div class="profile-row"><strong id="profile-username"></strong></div>
+  <div class="profile-row">Rank: <span id="profile-rank">D</span> <button id="change-username-btn" class="profile-change-btn">Change</button></div>
+  <div class="profile-row">Level: <span id="profile-level">1</span></div>
+  <div class="profile-exp">
+    <div class="exp-bar-bg"><div id="exp-bar" class="exp-bar-fill"></div></div>
+    <div class="exp-text"><span id="profile-exp">0</span>/<span id="profile-exp-needed">100</span> EXP</div>
+  </div>
+</div>
+
+<!-- Registration Panel -->
+<div id="register-panel" class="register-panel">
+  <input id="username-input" type="text" placeholder="Enter username" maxlength="20">
+  <button id="set-username-btn">Set Username</button>
+  <div class="register-hint">Visible name for this session</div>
+</div>
+
+<!-- Admin Password Verification -->
+<div id="admin-auth-panel" class="admin-auth-panel hidden">
+  <div class="admin-auth-title">Admin Verification</div>
+  <input id="admin-password-input" type="password" inputmode="numeric" maxlength="8" placeholder="Enter admin password">
+  <button id="verify-admin-btn" type="button">Verify Password</button>
+  <div class="admin-auth-hint">Required only for admin accounts</div>
+  <div id="admin-recovery-wrap" class="admin-recovery-wrap hidden">
+    <input id="admin-recovery-input" type="text" maxlength="64" placeholder="Enter required recovery ID">
+    <button id="verify-recovery-btn" type="button">Verify Recovery ID</button>
+  </div>
+</div>
+
+<!-- Admin Control Panel -->
+<div id="admin-panel" class="admin-panel hidden">
+  <div class="admin-title">ADMIN CONTROL</div>
+  <label class="admin-field">
+    Username
+    <input id="admin-username" type="text" maxlength="20">
+  </label>
+  <label class="admin-field">
+    Level
+    <input id="admin-level" type="number" min="1" step="1">
+  </label>
+  <label class="admin-field">
+    EXP
+    <input id="admin-exp" type="number" min="0" step="1">
+  </label>
+  <label class="admin-field">
+    Rank
+    <input id="admin-rank" type="text" maxlength="16" placeholder="ADMIN / S / A / B / C / D">
+  </label>
+  <label class="admin-field">
+    Mental Health
+    <input id="admin-mh" type="number" min="0" max="100" step="1">
+  </label>
+  <button id="admin-apply-btn" type="button">Apply Changes</button>
+</div>
+
+<!-- Main UI -->
+<div class="sao-ui">
+  <div class="panel">
+    <h1>🦊 Kitsune FunZone</h1>
+    <p id="output">Press a button to start the simulation...</p>
+  </div>
+
+  <div class="controls">
+    <button onclick="randomJoke()">😂 Joke</button>
+    <button onclick="chaos()">🎲 Chaos</button>
+    <button onclick="fakeAI()">🤖 Fake AI</button>
+    <button onclick="addBrain()">🧠 Add Brain</button>
+    <button id="increaseMHBtn" disabled>💊 Increase Mental Health</button>
+  </div>
+</div>
+
+<!-- Loading Window -->
+<div id="loadingWindow" class="loading-window hidden">
+  <p class="loading-text">Finding Brain...</p>
+</div>
+
+<!-- Yui Dialogue -->
+<div id="yui-dialogue" class="yui-dialogue hidden">
+
+  <!-- Yui Avatar -->
+  <div class="yui-avatar">
+    <img src="yui.png" alt="Yui AI">
+  </div>
+  <div class="yui-box">
+    <p id="yui-text"></p>
+    <button id="yui-next">Next</button>
+  </div>
+</div>
+
+<!-- Quiz Container -->
+<div id="quiz-container" class="hidden">
+  <div class="quiz-box">
+    <p id="quiz-question"></p>
+    <div id="quiz-answers"></div>
+  </div>
+</div>
+
+<!-- Admin Toggle -->
+<button id="admin-toggle-btn" class="admin-toggle-btn hidden" type="button">Hide Admin Panel</button>
+
+<!-- Owner -->
+<div class="owner-signature">
+  Programmed by ALFA YUUKI
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
