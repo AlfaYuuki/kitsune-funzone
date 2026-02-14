@@ -4,10 +4,15 @@ const loadingWindow = document.getElementById("loadingWindow");
 const mhText = document.querySelector(".mh-text");
 const mhBar = document.querySelector(".mh-bar");
 const increaseBtn = document.getElementById("increaseMHBtn");
+const missionsBtn = document.getElementById("missions-btn");
 
 const quizContainer = document.getElementById("quiz-container");
 const quizQuestion = document.getElementById("quiz-question");
 const quizAnswers = document.getElementById("quiz-answers");
+const missionSelector = document.getElementById("mission-selector");
+const missionHint = document.getElementById("mission-hint");
+const missionCloseBtn = document.getElementById("mission-close-btn");
+const missionOptionButtons = Array.from(document.querySelectorAll(".mission-btn"));
 
 /* ================== USER PROFILE (Upgrade 1) ================== */
 const userProfile = {
@@ -57,6 +62,12 @@ const ADMIN_MIN_MAX_ATTEMPTS = 1;
 const ADMIN_BASE_LOCK_MS = 30000;
 const ADMIN_SECURITY_STORAGE_KEY = 'kitsune_admin_security_v1';
 const NO_BRAIN_TEXT = 'Error404: No Brain Found';
+const MISSION_EXP_REWARDS = {
+    1: 25,
+    2: 50,
+    3: 75,
+    4: 100
+};
 let adminCustomRank = '';
 let isAdminPanelHiddenByUser = false;
 let hasBrain = false;
@@ -139,6 +150,86 @@ function hideWithAnimation(element, exitClass = 'ui-exit-fade', onDone) {
 
 function hasUsername() {
     return Boolean(userProfile.username && userProfile.username.trim().length);
+}
+
+function getMissionRequiredMentalHealth(level) {
+    if (level === 1) return 25;
+    if (level === 2) return 50;
+    if (level === 3) return 75;
+    if (level === 4) return 85;
+    return 100;
+}
+
+function getMaxUnlockedMissionLevel() {
+    if (!hasBrain) return 0;
+    const mh = Math.max(0, Math.min(100, Number.parseInt(userProfile.mentalHealth, 10) || 0));
+    if (mh >= 85) return 4;
+    if (mh >= 75) return 3;
+    if (mh >= 50) return 2;
+    if (mh >= 25) return 1;
+    return 0;
+}
+
+function getMissionAccessHint(maxLevel = getMaxUnlockedMissionLevel()) {
+    if (maxLevel >= 4) return 'All mission levels unlocked.';
+    if (maxLevel === 3) return 'Unlocked: Level 1-3. Reach 85% mental health for Level 4.';
+    if (maxLevel === 2) return 'Unlocked: Level 1-2. Reach 75% mental health for Level 3.';
+    if (maxLevel === 1) return 'Unlocked: Level 1. Reach 50% mental health for Level 2.';
+    return 'Missions are locked. Reach at least 25% mental health.';
+}
+
+function updateMissionSelectorAvailability() {
+    const usernameReady = hasUsername();
+    const maxLevel = getMaxUnlockedMissionLevel();
+
+    if (missionsBtn) {
+        missionsBtn.disabled = !usernameReady || maxLevel <= 0;
+    }
+
+    missionOptionButtons.forEach((btn) => {
+        const level = Number.parseInt(btn.dataset.missionLevel || '0', 10);
+        const unlocked = usernameReady && level > 0 && level <= maxLevel;
+        btn.disabled = !unlocked;
+        btn.classList.toggle('locked', !unlocked);
+    });
+
+    if (missionHint) missionHint.textContent = getMissionAccessHint(maxLevel);
+}
+
+function hideMissionSelector() {
+    if (!missionSelector) return;
+    hideWithAnimation(missionSelector, 'ui-exit-pop');
+}
+
+function showMissionSelector() {
+    if (!requireUsername()) return;
+    updateMissionSelectorAvailability();
+    const maxLevel = getMaxUnlockedMissionLevel();
+    if (maxLevel <= 0) {
+        typeText('Missions are locked until you reach 25% mental health.');
+        return;
+    }
+    showWithAnimation(missionSelector, 'ui-enter-pop');
+}
+
+function completeSelectedMission(level) {
+    if (!requireUsername()) return;
+    const parsedLevel = Number.parseInt(level, 10);
+    if (!Number.isFinite(parsedLevel) || parsedLevel < 1 || parsedLevel > 4) return;
+
+    const maxLevel = getMaxUnlockedMissionLevel();
+    if (parsedLevel > maxLevel) {
+        const requiredMh = getMissionRequiredMentalHealth(parsedLevel);
+        typeText(`Mission Level ${parsedLevel} is locked. Reach ${requiredMh}% mental health.`);
+        return;
+    }
+
+    const reward = MISSION_EXP_REWARDS[parsedLevel] || 0;
+    if (reward <= 0) return;
+
+    addExp(reward);
+    typeText(`Mission Level ${parsedLevel} complete! +${reward} EXP`);
+    updateMissionSelectorAvailability();
 }
 
 function readAdminLayoutMap() {
@@ -891,7 +982,7 @@ function runAutoBugFix({ silent = true } = {}) {
     lockedControls.forEach((btn) => {
         if (!btn) return;
         const shouldDisable = !usernameReady;
-        if (btn.disabled !== shouldDisable && btn !== increaseBtn) {
+        if (btn.disabled !== shouldDisable && btn !== increaseBtn && btn !== missionsBtn) {
             btn.disabled = shouldDisable;
             fixes.push('Synced control lock state');
         }
@@ -905,8 +996,17 @@ function runAutoBugFix({ silent = true } = {}) {
         }
     }
 
+    if (missionsBtn) {
+        const shouldDisableMissions = !usernameReady || getMaxUnlockedMissionLevel() <= 0;
+        if (missionsBtn.disabled !== shouldDisableMissions) {
+            missionsBtn.disabled = shouldDisableMissions;
+            fixes.push('Synced Missions button state');
+        }
+    }
+
     // Keep admin surfaces in sync.
     toggleAdminPanel();
+    updateMissionSelectorAvailability();
     renderProfile();
     updateMHBar();
 
@@ -996,8 +1096,10 @@ function lockFeatures() {
     lockedControls.forEach((btn) => {
         btn.disabled = true;
     });
+    hideMissionSelector();
     hideAdminPasswordPanel();
     toggleAdminPanel();
+    updateMissionSelectorAvailability();
 }
 
 function unlockFeatures() {
@@ -1007,6 +1109,7 @@ function unlockFeatures() {
     // Keep mission flow intact for normal users; verified ADMIN gets full access.
     if (increaseBtn) increaseBtn.disabled = !isAdminUser();
     toggleAdminPanel();
+    updateMissionSelectorAvailability();
 }
 
 function requireUsername() {
@@ -1045,6 +1148,7 @@ function renderProfile() {
 
 function showRegisterPanel() {
     if (!registerPanel) return;
+    hideMissionSelector();
     hideAdminPasswordPanel();
     showWithAnimation(registerPanel, 'ui-enter-rise');
     // small delay to allow it to appear then focus
@@ -1093,6 +1197,11 @@ if (verifyRecoveryBtn) verifyRecoveryBtn.addEventListener('click', verifyRecover
 if (adminRecoveryInput) adminRecoveryInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') verifyRecoveryId(); });
 if (adminApplyBtn) adminApplyBtn.addEventListener('click', applyAdminChanges);
 if (adminToggleBtn) adminToggleBtn.addEventListener('click', toggleAdminPanelVisibility);
+if (missionsBtn) missionsBtn.addEventListener('click', showMissionSelector);
+if (missionCloseBtn) missionCloseBtn.addEventListener('click', hideMissionSelector);
+missionOptionButtons.forEach((btn) => {
+    btn.addEventListener('click', () => completeSelectedMission(btn.dataset.missionLevel));
+});
 if (adminPanel) adminPanel.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -1208,6 +1317,7 @@ function updateMHBar() {
         mhBar.style.width = "0%";
         mhText.textContent = NO_BRAIN_TEXT;
         mhBar.style.background = "linear-gradient(to right, #ff4c4c,#ff0000)";
+        updateMissionSelectorAvailability();
         return;
     }
 
@@ -1222,6 +1332,8 @@ function updateMHBar() {
         mhBar.style.background = "linear-gradient(to right, #ffff00,#aaff00)";
     else
         mhBar.style.background = "linear-gradient(to right, #00ff00,#00cc00)";
+
+    updateMissionSelectorAvailability();
 }
 
 function changeMentalHealth(amount) {
@@ -1336,6 +1448,8 @@ const YUI_POSE_CLASSES = [
 
 let dialogues = [];
 let dialogueIndex = 0;
+let postQuizDialogues = [];
+let postQuizDialoguePoses = [];
 
 function setYuiPose(poseClass) {
     if (!yuiAvatar) return;
@@ -1427,9 +1541,84 @@ const warningDialoguePoses = [
     "pose-cheer"
 ];
 
+function buildPostQuizDialogueSet() {
+    const mh = Math.max(0, Math.min(100, Number.parseInt(userProfile.mentalHealth, 10) || 0));
+
+    if (mh >= 100) {
+        return {
+            lines: [
+                "Yui: Congratulations, you have reached 100% mental health.",
+                "Yui: Amazing, looks like you can access Missions tab now, and you can access all levels.",
+                "Yui: Best of luck on increasing your level.",
+                "Yui: Remember, increasing level also increases your rank."
+            ],
+            poses: ["pose-cheer", "pose-happy", "pose-guide", "pose-point"]
+        };
+    }
+
+    if (mh >= 85) {
+        return {
+            lines: [
+                `Yui: Great work. Your mental health is now ${mh}%.`,
+                "Yui: Missions are unlocked, and all levels are now available.",
+                "Yui: Best of luck on your level grind.",
+                "Yui: Higher levels will push your rank up too."
+            ],
+            poses: ["pose-happy", "pose-cheer", "pose-guide", "pose-point"]
+        };
+    }
+
+    if (mh >= 75) {
+        return {
+            lines: [
+                `Yui: Nice progress, you are at ${mh}% mental health.`,
+                "Yui: You can now access Missions Level 1 to Level 3.",
+                "Yui: Reach 85% to unlock Mission Level 4.",
+                "Yui: Keep going and your level will rise fast."
+            ],
+            poses: ["pose-happy", "pose-guide", "pose-alert", "pose-point"]
+        };
+    }
+
+    if (mh >= 50) {
+        return {
+            lines: [
+                `Yui: Good job. Your mental health is ${mh}%.`,
+                "Yui: You can access Mission Level 1 and Level 2 now.",
+                "Yui: Reach 75% to unlock Mission Level 3.",
+                "Yui: Keep improving to increase your level and rank."
+            ],
+            poses: ["pose-happy", "pose-guide", "pose-alert", "pose-point"]
+        };
+    }
+
+    if (mh >= 25) {
+        return {
+            lines: [
+                `Yui: Great, you reached ${mh}% mental health.`,
+                "Yui: Missions tab is now unlocked.",
+                "Yui: You can start with Mission Level 1.",
+                "Yui: Build your level step by step from here."
+            ],
+            poses: ["pose-cheer", "pose-guide", "pose-point", "pose-happy"]
+        };
+    }
+
+    return {
+        lines: [
+            `Yui: Your mental health is ${mh}% now.`,
+            "Yui: Missions are still locked.",
+            "Yui: Reach at least 25% mental health to unlock Mission Level 1.",
+            "Yui: Keep trying, you are getting closer."
+        ],
+        poses: ["pose-serious", "pose-warning", "pose-guide", "pose-pray"]
+    };
+}
+
 function getPoseForDialogue(dialogArray, index) {
     if (dialogArray === initialDialogues) return initialDialoguePoses[index] || "pose-neutral";
     if (dialogArray === warningDialogues) return warningDialoguePoses[index] || "pose-neutral";
+    if (dialogArray === postQuizDialogues) return postQuizDialoguePoses[index] || "pose-neutral";
     return "pose-neutral";
 }
 
@@ -1441,9 +1630,12 @@ increaseBtn.addEventListener("click", () => {
 /* ================== Mission System (Upgrade 3) ================== */
 function completeMission() {
     if (!requireUsername()) return;
-    addExp(50);
-    changeMentalHealth(10);
-    typeText("MISSION COMPLETE ✔ +50 EXP +10% Mental Health");
+    const postQuizSet = buildPostQuizDialogueSet();
+    postQuizDialogues = postQuizSet.lines;
+    postQuizDialoguePoses = postQuizSet.poses;
+    showYuiDialogue(postQuizDialogues);
+    typeText("Quiz complete. Mental health has been updated.");
+    updateMissionSelectorAvailability();
 }
 
 /* ================== Quiz ================== */

@@ -87,6 +87,7 @@
     <button onclick="fakeAI()">🤖 Fake AI</button>
     <button onclick="addBrain()">🧠 Add Brain</button>
     <button id="increaseMHBtn" disabled>💊 Increase Mental Health</button>
+    <button id="missions-btn" type="button">🗺️ Missions</button>
   </div>
 </div>
 
@@ -114,6 +115,19 @@
     <p id="quiz-question"></p>
     <div id="quiz-answers"></div>
   </div>
+</div>
+
+<!-- Mission Selector -->
+<div id="mission-selector" class="mission-selector hidden">
+  <div class="mission-title">Mission Selector</div>
+  <div class="mission-list">
+    <button class="mission-btn" data-mission-level="1" type="button">Level 1 (+25 EXP)</button>
+    <button class="mission-btn" data-mission-level="2" type="button">Level 2 (+50 EXP)</button>
+    <button class="mission-btn" data-mission-level="3" type="button">Level 3 (+75 EXP)</button>
+    <button class="mission-btn" data-mission-level="4" type="button">Level 4 (+100 EXP)</button>
+  </div>
+  <div id="mission-hint" class="mission-hint">Reach 25% mental health to unlock missions.</div>
+  <button id="mission-close-btn" type="button">Close</button>
 </div>
 
 <!-- Admin Toggle -->
