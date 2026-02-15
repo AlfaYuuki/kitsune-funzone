@@ -1,0 +1,6 @@
+services:
+  kitsunefunzone:
+    image: kitsunefunzone
+    build:
+      context: .
+      dockerfile: ./Dockerfile

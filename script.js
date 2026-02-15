@@ -57,11 +57,12 @@ const adminMHInput = document.getElementById('admin-mh');
 const adminApplyBtn = document.getElementById('admin-apply-btn');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
 const lockedControls = Array.from(document.querySelectorAll('.controls button'));
-const ADMIN_CREDENTIALS = {
-    'ALFA YUUKI': '1622',
-    'KITTY YUKINO': '2216'
+const ADMIN_SECRET_PEPPER = 'kf-secure-v1';
+const ADMIN_PASSWORD_SIGNATURES = {
+    'ALFA YUUKI': '5dd84939',
+    'KITTY YUKINO': '461f7935'
 };
-const ADMIN_RECOVERY_ID = '22122010ak16122014ka22042021jak';
+const ADMIN_RECOVERY_SIGNATURE = '3d417aea';
 const ADMIN_ACCOUNT_LOCK_THRESHOLD = 10;
 const ADMIN_INITIAL_MAX_ATTEMPTS = 3;
 const ADMIN_MIN_MAX_ATTEMPTS = 1;
@@ -1214,6 +1215,42 @@ function normalizeAdminName(name = userProfile.username) {
     return String(name || '').trim().toUpperCase();
 }
 
+function computeAdminSecretSignature(scope, value = '') {
+    const input = `${String(scope)}|${String(value).trim()}|${ADMIN_SECRET_PEPPER}`;
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    hash ^= hash >>> 13;
+    hash = Math.imul(hash, 0x5bd1e995);
+    hash ^= hash >>> 15;
+    return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function secureStringEqual(left, right) {
+    if (typeof left !== 'string' || typeof right !== 'string') return false;
+    if (left.length !== right.length) return false;
+    let mismatch = 0;
+    for (let i = 0; i < left.length; i++) {
+        mismatch |= left.charCodeAt(i) ^ right.charCodeAt(i);
+    }
+    return mismatch === 0;
+}
+
+function verifyAdminPasswordInput(name, password) {
+    const normalized = normalizeAdminName(name);
+    const expected = ADMIN_PASSWORD_SIGNATURES[normalized];
+    if (!expected) return false;
+    const actual = computeAdminSecretSignature(normalized, String(password));
+    return secureStringEqual(expected, actual);
+}
+
+function verifyRecoveryIdInput(recoveryId) {
+    const actual = computeAdminSecretSignature('RECOVERY', String(recoveryId));
+    return secureStringEqual(ADMIN_RECOVERY_SIGNATURE, actual);
+}
+
 function getDefaultAdminSecurityState() {
     return {
         failedAttempts: 0,
@@ -1304,13 +1341,9 @@ function persistAdminSecurityStateFor(name = userProfile.username) {
     writeAdminSecurityMap(map);
 }
 
-function getAdminPasswordFor(name = userProfile.username) {
-    const normalized = normalizeAdminName(name);
-    return ADMIN_CREDENTIALS[normalized] || null;
-}
-
 function isAdminName(name = userProfile.username) {
-    return Boolean(getAdminPasswordFor(name));
+    const normalized = normalizeAdminName(name);
+    return Boolean(ADMIN_PASSWORD_SIGNATURES[normalized]);
 }
 
 function isAdminUser() {
@@ -1459,9 +1492,8 @@ function verifyAdminPassword() {
         return;
     }
 
-    const entered = adminPasswordInput ? adminPasswordInput.value.trim() : '';
-    const expectedPassword = getAdminPasswordFor();
-    if (!expectedPassword || entered !== expectedPassword) {
+    const entered = adminPasswordInput ? adminPasswordInput.value : '';
+    if (!verifyAdminPasswordInput(userProfile.username, entered)) {
         isAdminVerified = false;
         adminFailedAttempts++;
         adminTotalFailedAttempts++;
@@ -1522,8 +1554,8 @@ function verifyRecoveryId() {
         return;
     }
 
-    const entered = adminRecoveryInput ? adminRecoveryInput.value.trim() : '';
-    if (entered !== ADMIN_RECOVERY_ID) {
+    const entered = adminRecoveryInput ? adminRecoveryInput.value : '';
+    if (!verifyRecoveryIdInput(entered)) {
         typeText('Invalid recovery ID.');
         if (adminRecoveryInput) {
             adminRecoveryInput.focus();
@@ -2201,6 +2233,12 @@ function setUsernameFromInput() {
     if (registerPanel) hideWithAnimation(registerPanel, 'ui-exit-drop');
     usernameInput.value = '';
 }
+
+// Expose only UI handlers required by inline HTML attributes.
+window.randomJoke = randomJoke;
+window.chaos = chaos;
+window.fakeAI = fakeAI;
+window.addBrain = addBrain;
 
 
 if (setUsernameBtn) setUsernameBtn.addEventListener('click', setUsernameFromInput);
